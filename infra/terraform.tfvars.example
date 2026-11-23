@@ -1,0 +1,66 @@
+# 复制为 terraform.tfvars 后按实际环境填写。
+#
+# 认证信息不要写在这里。AK/SK 一律走环境变量：
+#   export HW_ACCESS_KEY=<AK>
+#   export HW_SECRET_KEY=<SK>
+
+# ---------------------------------------------------------------------------
+# 基础
+# ---------------------------------------------------------------------------
+region      = "cn-north-4"
+name_prefix = "rds-rr-elb"
+
+vpc_id    = "<VPC_ID>"
+subnet_id = "<SUBNET_ID>" # 子网（网络）ID，非原生 IPv4 子网 ID
+
+# elb_availability_zones 的数量是 ELB 计费的直接乘数。
+# 独享型 ELB 单可用区部署也能跨可用区转发到后端，先从一个可用区起步。
+elb_availability_zones = ["cn-north-4a"]
+
+# ---------------------------------------------------------------------------
+# 场景一（默认）：监视已有的只读副本，走 RDS API 发现
+# ---------------------------------------------------------------------------
+discovery_mode  = "rds_api"
+rds_replica_ids = ["<REPLICA_INSTANCE_ID_1>", "<REPLICA_INSTANCE_ID_2>"]
+
+rds_listener_port = 3306
+
+# ---------------------------------------------------------------------------
+# 场景二：走 DNS 发现（函数需要接入 VPC）
+#
+# 该模式下函数会自动接入 VPC。RDS 内网域名只在 VPC 内可解析，
+# 因此 dns 模式下函数必须接入 VPC 才能解析域名。
+# ---------------------------------------------------------------------------
+# discovery_mode        = "dns"
+# rds_replica_dns_names = ["<replica-1>.rds.cn-north-4.myhuaweicloud.com"]
+
+# ---------------------------------------------------------------------------
+# 场景三：顺带创建演示用只读副本
+#
+# 默认关闭。打开会创建实例与存储资源，请确认所选规格与容量。
+# ---------------------------------------------------------------------------
+# create_rds_replicas           = true
+# rds_primary_instance_id       = "<PRIMARY_INSTANCE_ID>"
+# rds_replica_count             = 2
+# rds_replica_flavor            = "rds.mysql.n1.large.2.rr"
+# rds_replica_volume_type       = "CLOUDSSD"
+# rds_replica_availability_zones = ["cn-north-4a", "cn-north-4b"]
+
+# ---------------------------------------------------------------------------
+# 后端位置
+# ---------------------------------------------------------------------------
+# 副本与负载均衡器不在同一个 VPC 时打开。
+# cross_vpc_backend = true
+
+# 副本在同 VPC 的另一个子网时填写。
+# backend_subnet_id = "<BACKEND_SUBNET_ID>"
+
+# ---------------------------------------------------------------------------
+# 行为调参
+# ---------------------------------------------------------------------------
+schedule                          = "1m"
+invocations_before_deregistration = 3  # 连续多少次缺失才真正摘除
+max_deregistration_percent        = 50 # 单次摘除比例上限，超过就熔断
+max_lookup_per_invocation         = 3
+
+log_ttl_in_days = 7
